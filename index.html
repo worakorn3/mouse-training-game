@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mouse Practice Game (v2 - Config Separation)</title>
+    <title>Mouse Practice Game (v2 - Reaction Stats)</title>
     <link rel="stylesheet" href="style.css">
 
     <style>
@@ -64,67 +64,64 @@
         .controls button#historyButton:hover:not(:disabled) { background-color: #2980b9; }
 
 
-        .controls span { /* Pause info */
-            font-style: italic;
-            color: #555;
-            background-color: #e9ecef;
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
-
         /* --- Stats Display --- */
         #stats {
-            margin-bottom: 10px; /* Reduced margin to bring hint closer */
-            font-size: 1.0em; /* Slightly smaller font for more stats */
+            margin-bottom: 10px;
+            font-size: 0.95em; /* Adjusted font size */
             display: flex;
-            flex-wrap: wrap; /* Allow wrapping */
-            gap: 10px; /* Adjusted gap */
+            flex-wrap: wrap;
+            gap: 8px; /* Adjusted gap */
             background-color: #ffffff;
-            padding: 10px 15px; /* Adjusted padding */
+            padding: 10px 12px; /* Adjusted padding */
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            min-width: 450px; /* Adjusted min-width */
+            min-width: 500px; /* Adjusted min-width */
             justify-content: space-around;
             text-align: center;
         }
         #stats > span {
-             flex-basis: auto; /* Allow items to size naturally */
+             flex-basis: auto;
              flex-grow: 1;
-             padding: 0 8px; /* Add some padding */
-             border-right: 1px solid #eee; /* Separator line */
+             padding: 0 6px; /* Adjusted padding */
+             border-right: 1px solid #eee;
+             white-space: nowrap; /* Prevent wrapping within a stat block */
         }
         #stats > span:last-child {
-            border-right: none; /* Remove border from last item */
+            border-right: none;
         }
 
-        #stats span span, #stats #timer, #stats #hit-rate { /* Target value spans, timer, hit-rate */
+        #stats span span, #stats #timer, #stats #hit-rate,
+        #stats #avg-reaction-time, #stats #p95-reaction-time { /* Target all value spans */
             font-weight: bold;
-            color: #2980b9; /* Default color for stats */
+            color: #2980b9;
             display: block;
             margin-top: 3px;
-            transition: color 0.3s ease; /* Smooth color transition */
+            transition: color 0.3s ease;
+            font-size: 1.1em; /* Make values slightly larger */
         }
-         #stats #timer { /* Specific style for timer base */
-             min-width: 55px; /* Ensure space for MM:SS */
+         #stats #timer {
+             min-width: 50px;
          }
-         /* Warning style for timer */
          #stats #timer.warning {
-             color: #e74c3c; /* Red color only when warning class is present */
+             color: #e74c3c;
              font-weight: bold;
          }
-         #stats #hit-rate { /* Specific style for hit rate */
-              min-width: 50px;
+         #stats #hit-rate {
+              min-width: 45px;
+         }
+         #stats #avg-reaction-time, #stats #p95-reaction-time {
+             min-width: 50px;
          }
 
 
         /* --- Hint Box --- */
         #hints {
-            margin-bottom: 15px; /* Space before game area */
+            margin-bottom: 15px;
             font-size: 0.9em;
             color: #555;
             text-align: center;
         }
-        #hints kbd { /* Style for keyboard keys */
+        #hints kbd {
              background-color: #eee;
              border: 1px solid #ccc;
              border-radius: 3px;
@@ -144,7 +141,7 @@
             max-height: 550px;
             background-color: #ecf0f1;
             border: 2px solid #bdc3c7;
-            position: relative; /* Crucial for overlay positioning */
+            position: relative;
             cursor: crosshair;
             overflow: hidden;
             margin: auto;
@@ -159,26 +156,25 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 5; /* Above targets, below pause/config overlays */
-            display: flex; /* Keep flex for centering single button */
-            justify-content: center; /* Center the play button */
+            z-index: 5;
+            display: flex;
+            justify-content: center;
             align-items: center;
             padding: 20px;
             border-radius: 10px;
-            opacity: 0; /* Start hidden */
+            opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
-            pointer-events: none; /* Prevent blocking clicks when invisible */
+            pointer-events: none;
         }
         #game-overlay-buttons.visible {
              opacity: 1;
              visibility: visible;
-             pointer-events: auto; /* Allow clicks when visible */
+             pointer-events: auto;
         }
 
-        /* Styling for Play button within the overlay */
         #game-overlay-buttons button#playButton {
-            padding: 12px 25px; /* Larger buttons */
+            padding: 12px 25px;
             font-size: 1.1em;
             cursor: pointer;
             color: white;
@@ -190,7 +186,7 @@
             background-color: #2ecc71;
         }
         #game-overlay-buttons button#playButton:hover:not(:disabled) { background-color: #27ae60; }
-        #game-overlay-buttons button#playButton:disabled { /* Style if needed */
+        #game-overlay-buttons button#playButton:disabled {
              background-color: #bdc3c7 !important;
              cursor: not-allowed;
              opacity: 0.7;
@@ -199,8 +195,8 @@
 
         /* --- Target Styling --- */
         .target {
-            width: 35px; /* Fixed width */
-            height: 35px; /* Fixed height */
+            width: 35px;
+            height: 35px;
             background: radial-gradient(circle, #e74c3c, #c0392b);
             border-radius: 50%;
             position: absolute;
@@ -209,7 +205,7 @@
             box-sizing: border-box;
             opacity: 1;
             transition: opacity 0.3s ease-out, transform 0.1s ease;
-            z-index: 1; /* Ensure targets are below overlays */
+            z-index: 1;
         }
         .target.removing { opacity: 0; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
@@ -223,25 +219,24 @@
             background-color: rgba(44, 62, 80, 0.7);
             color: white; font-size: 2.5em; font-weight: bold;
             display: none; justify-content: center; align-items: center;
-            z-index: 10; /* Above button overlay */
+            z-index: 10;
             cursor: default; border-radius: 8px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
          /* --- Config Panel, Summary Panel, History Panel (Modal Styling) --- */
-        .modal-panel { /* Common styling for modals */
-            display: none; position: fixed; z-index: 20; /* Above everything */
+        .modal-panel {
+            display: none; position: fixed; z-index: 20;
             left: 0; top: 0; width: 100%; height: 100%;
             overflow: auto; background-color: rgba(0,0,0,0.6); padding-top: 60px;
         }
-        .modal-content { /* Common styling for content box */
+        .modal-content {
             background-color: #fefefe; margin: 5% auto; padding: 25px 30px;
-            border: 1px solid #888; width: 80%; max-width: 500px; /* Default width */
+            border: 1px solid #888; width: 80%; max-width: 500px;
             border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            text-align: center; /* Center content by default */
-            position: relative; /* Needed for absolute positioning of close button */
+            text-align: center;
+            position: relative;
         }
         .modal-content h2 { margin-top: 0; color: #2c3e50; margin-bottom: 25px; }
-         /* Close button for modals */
          .modal-close-button {
              color: #aaa;
              position: absolute;
@@ -250,7 +245,7 @@
              font-size: 28px;
              font-weight: bold;
              cursor: pointer;
-             line-height: 1; /* Ensure consistent vertical alignment */
+             line-height: 1;
          }
          .modal-close-button:hover,
          .modal-close-button:focus {
@@ -259,13 +254,12 @@
          }
 
         /* --- Config Specific --- */
-        #config-panel .modal-content { max-width: 550px; } /* Slightly wider for presets */
+        #config-panel .modal-content { max-width: 550px; }
 
-        /* Preset Buttons */
         #preset-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px; /* Spacing between preset buttons */
+            gap: 8px;
             justify-content: center;
             margin-bottom: 25px;
             padding-bottom: 15px;
@@ -285,18 +279,16 @@
             background-color: #e9ecef;
             border-color: #bbb;
         }
-        .preset-button.active { /* Style for the selected preset */
+        .preset-button.active {
             background-color: #3498db;
             border-color: #2980b9;
             color: white;
             font-weight: bold;
         }
-        /* Special style for active Custom button */
         .preset-button#preset-custom.active {
              background-color: #e74c3c;
              border-color: #c0392b;
         }
-
 
         #config-panel .config-item { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; text-align: left; }
         #config-panel label { font-weight: bold; margin-right: 10px; flex-basis: 60%; }
@@ -305,24 +297,22 @@
         #config-panel .config-buttons button { padding: 10px 20px; cursor: pointer; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; transition: background-color 0.2s ease; }
         #config-panel .config-buttons button:hover { background-color: #27ae60; }
 
-        /* Config Separator and Header */
         #config-panel hr {
             border: none;
             border-top: 1px solid #eee;
-            margin: 25px 0 20px 0; /* Add spacing */
+            margin: 25px 0 20px 0;
         }
         #config-panel h3.config-section-header {
             text-align: left;
             font-size: 1em;
             color: #555;
             margin-bottom: 15px;
-            margin-top: 0; /* Reset top margin */
+            margin-top: 0;
             font-weight: bold;
         }
 
-
         /* Summary Specific */
-        #summary-panel .modal-content { max-width: 500px; } /* Keep summary width */
+        #summary-panel .modal-content { max-width: 500px; }
         #summary-panel .summary-item { margin-bottom: 20px; font-size: 1.2em; }
         #summary-panel .summary-item span { font-weight: bold; color: #3498db; font-size: 1.4em; display: block; margin-top: 5px; }
         #summary-panel .summary-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
@@ -333,20 +323,20 @@
         #summary-panel button#backToStartButton:hover { background-color: #7f8c8d; }
 
         /* --- History Specific --- */
-        #history-panel .modal-content { max-width: 600px; } /* Wider for history */
-        #history-panel h2 { /* Add space for preset name */
-            padding-right: 30px; /* Space for close button */
-            margin-bottom: 10px; /* Reduce space below title */
+        #history-panel .modal-content { max-width: 650px; } /* Wider for history + new stats */
+        #history-panel h2 {
+            padding-right: 30px;
+            margin-bottom: 10px;
         }
-        #history-panel h2 .preset-name { /* Style for preset name in title */
+        #history-panel h2 .preset-name {
              font-weight: normal;
              font-size: 0.8em;
              color: #777;
         }
-        #history-difficulty-selector { /* Container for dropdown */
+        #history-difficulty-selector {
             margin-bottom: 15px;
         }
-        #history-difficulty-select { /* Style the dropdown */
+        #history-difficulty-select {
             padding: 5px 8px;
             border-radius: 4px;
             border: 1px solid #ccc;
@@ -354,34 +344,43 @@
         }
 
         #history-list {
-            list-style: none; /* Remove default list style */
+            list-style: none;
             padding: 0;
             margin-top: 15px;
-            max-height: 40vh; /* Limit height and allow scroll */
+            max-height: 40vh;
             overflow-y: auto;
-            text-align: left; /* Align history items left */
+            text-align: left;
             border: 1px solid #eee;
             border-radius: 5px;
         }
         #history-list li {
             padding: 10px 15px;
             border-bottom: 1px solid #eee;
-            font-size: 0.95em;
+            font-size: 0.9em; /* Slightly smaller to fit more stats */
             display: flex;
             justify-content: space-between;
-            flex-wrap: wrap; /* Wrap if needed */
+            flex-wrap: wrap;
             gap: 10px;
         }
          #history-list li:last-child {
              border-bottom: none;
          }
         #history-list li .history-stats {
-            font-weight: bold;
+            font-weight: normal; /* Use bold spans inside */
+            flex-grow: 1; /* Allow stats to take space */
         }
+         #history-list li .history-stats span { /* Style individual stats */
+            margin-right: 8px; /* Space between stats */
+         }
+         #history-list li .history-stats span strong { /* Bold the value */
+             font-weight: bold;
+         }
         #history-list li .history-date {
             font-size: 0.85em;
             color: #777;
-            flex-shrink: 0; /* Prevent date from shrinking too much */
+            flex-shrink: 0;
+            margin-left: 15px; /* Space between stats and date */
+            white-space: nowrap;
         }
         #history-panel .no-history {
             color: #888;
@@ -405,8 +404,7 @@
         <span>Score<span id="score">0</span></span>
         <span>Accuracy<span id="accuracy">0.00</span>%</span>
         <span>Hit Rate<span id="hit-rate">0.00</span>%</span>
-        <span>Last Reaction<span id="reaction-time">N/A</span> ms</span>
-        <span>Time Left<span id="timer">--:--</span></span>
+        <span>Avg React<span id="avg-reaction-time">N/A</span></span> <span>P95 React<span id="p95-reaction-time">N/A</span></span> <span>Last React<span id="reaction-time">N/A</span> ms</span> <span>Time Left<span id="timer">--:--</span></span>
     </div>
 
     <div id="hints">
@@ -424,7 +422,6 @@
         <div class="modal-content">
              <span class="modal-close-button" id="closeConfigButton">&times;</span>
             <h2>Settings</h2>
-
             <div id="preset-buttons">
                 <button class="preset-button" id="preset-easy">Easy</button>
                 <button class="preset-button" id="preset-normal">Normal</button>
@@ -433,7 +430,6 @@
                 <button class="preset-button" id="preset-aimbot">Aimbot</button>
                 <button class="preset-button" id="preset-custom">Custom</button>
             </div>
-
             <div class="config-item">
                 <label for="minSpawnRate">Min Spawn Rate (ms):</label>
                 <input type="number" id="minSpawnRate" value="500" min="100" step="100" class="config-input">
@@ -450,16 +446,12 @@
                 <label for="maxTargets">Max Targets on Screen:</label>
                 <input type="number" id="maxTargets" value="5" min="1" step="1" class="config-input">
             </div>
-
             <hr>
             <h3 class="config-section-header">Global Configs</h3>
-
              <div class="config-item">
                 <label for="gameDuration">Game Duration (seconds):</label>
-                <input type="number" id="gameDuration" value="60" min="10" step="5">
-             </div>
-
-             <div class="config-buttons">
+                <input type="number" id="gameDuration" value="60" min="10" step="5"> </div>
+            <div class="config-buttons">
                 <button id="saveConfigButton">Apply & Close</button>
             </div>
         </div>
@@ -474,7 +466,7 @@
             <div class="summary-item">
                 Final Accuracy: <span id="summary-accuracy">0.00</span>%
             </div>
-            <div class="summary-buttons">
+             <div class="summary-buttons">
                 <button id="playAgainImmediatelyButton">Play Again Immediately</button>
                 <button id="backToStartButton">Back to Start</button>
             </div>
@@ -507,7 +499,7 @@
 
     <script>
         /**
-         * Mouse Practice Game (Refactored v2 - Config Sectioning)
+         * Mouse Practice Game (Refactored v2 - Added Reaction Stats)
          */
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -554,6 +546,8 @@
                 accuracyDisplay: document.getElementById('accuracy'),
                 hitRateDisplay: document.getElementById('hit-rate'),
                 reactionTimeDisplay: document.getElementById('reaction-time'),
+                avgReactionTimeDisplay: document.getElementById('avg-reaction-time'), // New Stat Display
+                p95ReactionTimeDisplay: document.getElementById('p95-reaction-time'), // New Stat Display
                 timerDisplay: document.getElementById('timer'),
                 pauseOverlay: document.getElementById('pause-overlay'),
                 configButton: document.getElementById('configButton'),
@@ -591,6 +585,7 @@
                 totalClicks: 0,
                 totalHits: 0,
                 totalSpawns: 0,
+                reactionTimes: [], // Store individual reaction times for avg/percentile
                 spawnTimerId: null,
                 isPaused: false,
                 isGameActive: false,
@@ -613,23 +608,65 @@
 
             // --- Helper Functions ---
 
+            /** Resets stats for a new round. */
             function resetStats() {
                 state.score = 0;
                 state.totalClicks = 0;
                 state.totalHits = 0;
                 state.totalSpawns = 0;
+                state.reactionTimes = []; // Clear reaction times
                 dom.reactionTimeDisplay.textContent = 'N/A';
+                dom.avgReactionTimeDisplay.textContent = 'N/A'; // Reset new stats display
+                dom.p95ReactionTimeDisplay.textContent = 'N/A'; // Reset new stats display
                 updateStatsDisplay();
             }
 
+            /** Calculates the average of an array of numbers */
+            function calculateAverage(numbers) {
+                if (!numbers || numbers.length === 0) {
+                    return 0;
+                }
+                const sum = numbers.reduce((acc, val) => acc + val, 0);
+                return sum / numbers.length;
+            }
+
+            /** Calculates the percentile of an array of numbers */
+            function calculatePercentile(numbers, percentile) {
+                 if (!numbers || numbers.length === 0) {
+                    return 0; // Or handle as N/A
+                }
+                // Sort numbers ascending
+                const sorted = [...numbers].sort((a, b) => a - b);
+
+                // Calculate index (using ceiling for simplicity, adjust if needed)
+                // Using Math.max to prevent index -1 for single element array
+                const index = Math.max(0, Math.ceil((percentile / 100) * sorted.length) - 1);
+
+                return sorted[index];
+            }
+
+
+            /** Updates score, accuracy, hit rate, and reaction time stats display. Returns current accuracy. */
             function updateStatsDisplay() {
                 dom.scoreDisplay.textContent = state.score;
                 const accuracy = state.totalClicks === 0 ? 0 : (state.totalHits / state.totalClicks) * 100;
                 const hitRate = state.totalSpawns === 0 ? 0 : (state.totalHits / state.totalSpawns) * 100;
-                dom.accuracyDisplay.textContent = accuracy.toFixed(2);
-                dom.hitRateDisplay.textContent = hitRate.toFixed(2);
-                return accuracy;
+                const displayAccuracy = Math.max(0, Math.min(100, accuracy));
+                const displayHitRate = Math.max(0, Math.min(100, hitRate));
+
+                // Calculate reaction time stats
+                const avgReaction = calculateAverage(state.reactionTimes);
+                // Calculate p95 only if there are enough data points (e.g., > 1)
+                const p95Reaction = state.reactionTimes.length > 1 ? calculatePercentile(state.reactionTimes, 95) : 0;
+
+                dom.accuracyDisplay.textContent = displayAccuracy.toFixed(2);
+                dom.hitRateDisplay.textContent = displayHitRate.toFixed(2);
+                dom.avgReactionTimeDisplay.textContent = avgReaction > 0 ? avgReaction.toFixed(0) + ' ms' : 'N/A';
+                dom.p95ReactionTimeDisplay.textContent = p95Reaction > 0 ? p95Reaction.toFixed(0) + ' ms' : 'N/A';
+
+                return displayAccuracy; // Return accuracy for summary
             }
+
 
             function getRandomPosition() {
                 const gameAreaWidth = dom.gameArea.clientWidth;
@@ -742,11 +779,12 @@
                 dom.gameArea.appendChild(targetElement);
 
                 state.totalSpawns++;
-                updateStatsDisplay();
+                // updateStatsDisplay(); // Update stats in click handlers
 
                 scheduleSpawn();
             }
 
+            /** Removes target element, clears timers, updates state. */
             function removeTarget(targetId, isHit) {
                 const targetData = state.activeTargets.get(targetId);
                 if (!targetData) return;
@@ -757,15 +795,20 @@
                  if (isHit) {
                     const clickTime = performance.now();
                     const reactionTime = (clickTime - targetData.spawnTime) - targetData.pauseElapsedTime;
-                    dom.reactionTimeDisplay.textContent = reactionTime.toFixed(0);
+                    dom.reactionTimeDisplay.textContent = reactionTime.toFixed(0); // Update last reaction
+                    state.reactionTimes.push(reactionTime); // Store for avg/percentile
                     state.score++;
-                    state.totalHits++;
-                    updateStatsDisplay();
+                    // Note: totalHits and totalClicks are incremented in click handlers
                  }
 
                 setTimeout(() => targetData.element?.remove(), REMOVE_DELAY);
                 state.activeTargets.delete(targetId);
 
+                // Update stats display AFTER potential score/reaction time updates
+                // and AFTER potential hit/click increments in handlers
+                updateStatsDisplay();
+
+                // Spawning logic
                 if (state.isGameActive && !state.isPaused && state.activeTargets.size === 0) {
                     console.log("Spawning immediately - screen empty.");
                     clearTimeout(state.spawnTimerId);
@@ -776,6 +819,7 @@
                      }
                 }
             }
+
 
             // --- Game Flow Control ---
 
@@ -830,14 +874,30 @@
                  console.log("Round Reset Performed (Keeping Config)");
              }
 
+             /** Stops activity, calculates final stats, saves history, shows summary */
              function showSummary() {
+                 // Calculate final stats before stopping activity might clear them
                  const finalAccuracy = updateStatsDisplay();
-                 saveHistoryEntry(state.score, finalAccuracy, state.sessionPreset || 'custom');
-                 stopGameActivity();
+                 const finalAvgReaction = calculateAverage(state.reactionTimes);
+                 const finalP95Reaction = state.reactionTimes.length > 1 ? calculatePercentile(state.reactionTimes, 95) : 0;
 
+                 // Save history using the preset active when the session *started*
+                 saveHistoryEntry(
+                     state.score,
+                     finalAccuracy,
+                     finalAvgReaction,
+                     finalP95Reaction,
+                     state.sessionPreset || 'custom'
+                 );
+
+                 stopGameActivity(); // Now stop timers, clear targets, update buttons
+
+                 // Populate summary panel
                  dom.summaryScore.textContent = state.score;
                  dom.summaryAccuracy.textContent = finalAccuracy.toFixed(2);
+                 // Optional: Add avg/p95 reaction to summary panel too?
 
+                 // Hide play button overlay, show summary
                  dom.gameOverlayButtons.classList.remove('visible');
                  dom.summaryPanel.style.display = 'block';
                  console.log("Displaying Summary");
@@ -979,16 +1039,27 @@
                     const storedHistory = localStorage.getItem(key);
                     if (storedHistory) {
                         const parsed = JSON.parse(storedHistory);
-                        return Array.isArray(parsed) ? parsed : [];
+                        // Add validation for expected structure
+                        if (Array.isArray(parsed)) {
+                             // Optional: filter out entries that don't have the expected keys?
+                             return parsed;
+                        }
                     }
                 } catch (e) { console.error(`Failed to load history for ${presetName}:`, e); }
                 return [];
             }
 
-            function saveHistoryEntry(finalScore, finalAccuracy, presetName) {
+            /** Saves a new entry with new stats to the history array for a specific preset */
+            function saveHistoryEntry(finalScore, finalAccuracy, avgReaction, p95Reaction, presetName) {
                 const key = HISTORY_PREFIX + presetName;
                 const history = loadHistory(presetName);
-                const newEntry = { score: finalScore, accuracy: finalAccuracy, timestamp: Date.now() };
+                const newEntry = {
+                    score: finalScore,
+                    accuracy: finalAccuracy,
+                    avgReaction: avgReaction, // Add avg reaction
+                    p95Reaction: p95Reaction, // Add p95 reaction
+                    timestamp: Date.now()
+                 };
                 history.unshift(newEntry);
                 const trimmedHistory = history.slice(0, MAX_HISTORY_ENTRIES);
                 try {
@@ -997,7 +1068,8 @@
                 } catch (e) { console.error("Failed to save game history:", e); }
             }
 
-            function displayHistoryForPreset(presetName) {
+             /** Displays the game history in the modal for the selected preset */
+             function displayHistoryForPreset(presetName) {
                 const history = loadHistory(presetName);
                 const presetDisplayName = presetName.charAt(0).toUpperCase() + presetName.slice(1);
                 dom.historyTitle.innerHTML = `Game History <span class="preset-name">(${presetDisplayName})</span>`;
@@ -1010,14 +1082,24 @@
                     history.forEach(entry => {
                         const li = document.createElement('li');
                         const dateStr = new Date(entry.timestamp).toLocaleString();
+                        // Format new stats, handle potential missing values from old history items
+                        const avgReactStr = entry.avgReaction ? `${entry.avgReaction.toFixed(0)}ms` : 'N/A';
+                        const p95ReactStr = entry.p95Reaction ? `${entry.p95Reaction.toFixed(0)}ms` : 'N/A';
+
                         li.innerHTML = `
-                            <span class="history-stats">Score: ${entry.score}, Accuracy: ${entry.accuracy.toFixed(2)}%</span>
+                            <span class="history-stats">
+                                <span>Score: <strong>${entry.score}</strong>,</span>
+                                <span>Acc: <strong>${entry.accuracy.toFixed(2)}%</strong>,</span>
+                                <span>Avg React: <strong>${avgReactStr}</strong>,</span>
+                                <span>P95 React: <strong>${p95ReactStr}</strong></span>
+                            </span>
                             <span class="history-date">${dateStr}</span>
                         `;
                         dom.historyList.appendChild(li);
                     });
                 }
             }
+
 
             function openHistoryPanel() {
                 if (state.isGameActive) return;
@@ -1090,18 +1172,31 @@
             // --- Event Handlers ---
 
             function handleTargetClick(event) {
+                event.stopPropagation(); // Keep stopPropagation
                 if (!state.isGameActive || state.isPaused) return;
+
                 const targetId = event.target.id;
-                state.totalClicks++;
-                removeTarget(targetId, true);
+                state.totalHits++; // Increment hits on target click
+                state.totalClicks++; // Increment clicks on target click
+                removeTarget(targetId, true); // Pass true to indicate hit for score/reaction time
+                updateStatsDisplay(); // Update stats AFTER counts are updated
             }
 
             function handleBackgroundClick(event) {
-                 if (event.target.classList.contains('target')) return;
-                 if (!state.isGameActive || state.isPaused) return;
-                state.totalClicks++;
-                updateStatsDisplay();
+                 if (!state.isGameActive || state.isPaused) return; // Ignore if game not running or paused
+
+                 // If the click was actually on a target, ignore it here
+                 // because handleTargetClick already processed it.
+                 if (event.target.classList.contains('target')) {
+                     return;
+                 }
+
+                 // This is a miss (background click)
+                 console.log("Background Click (Miss)");
+                 state.totalClicks++; // Increment clicks for the miss
+                 updateStatsDisplay(); // Update accuracy after miss
             }
+
 
             function handleKeyDown(event) {
                  if (event.target.tagName === 'INPUT') return;
