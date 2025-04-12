@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mouse Practice Game (v2 - Config Separation)</title>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Basic styling for the page */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 15px;
+            color: #333;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        /* --- Top Controls (Config, Reset, History, Pause Info) --- */
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            background-color: #ffffff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls button { /* General style for buttons in this bar */
+            padding: 8px 15px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+        .controls button:disabled {
+             background-color: #bdc3c7;
+             cursor: not-allowed;
+             opacity: 0.7;
+        }
+        .controls button#configButton { background-color: #95a5a6; /* Grey */ }
+        .controls button#configButton:hover:not(:disabled) { background-color: #7f8c8d; }
+
+        /* Reset button now in top bar */
+        .controls button#resetButton { background-color: #e74c3c; /* Red */ }
+        .controls button#resetButton:hover:not(:disabled) { background-color: #c0392b; }
+
+        .controls button#historyButton { background-color: #3498db; /* Blue */ }
+        .controls button#historyButton:hover:not(:disabled) { background-color: #2980b9; }
+
+
+        .controls span { /* Pause info */
+            font-style: italic;
+            color: #555;
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        /* --- Stats Display --- */
+        #stats {
+            margin-bottom: 10px; /* Reduced margin to bring hint closer */
+            font-size: 1.0em; /* Slightly smaller font for more stats */
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping */
+            gap: 10px; /* Adjusted gap */
+            background-color: #ffffff;
+            padding: 10px 15px; /* Adjusted padding */
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 450px; /* Adjusted min-width */
+            justify-content: space-around;
+            text-align: center;
+        }
+        #stats > span {
+             flex-basis: auto; /* Allow items to size naturally */
+             flex-grow: 1;
+             padding: 0 8px; /* Add some padding */
+             border-right: 1px solid #eee; /* Separator line */
+        }
+        #stats > span:last-child {
+            border-right: none; /* Remove border from last item */
+        }
+
+        #stats span span, #stats #timer, #stats #hit-rate { /* Target value spans, timer, hit-rate */
+            font-weight: bold;
+            color: #2980b9; /* Default color for stats */
+            display: block;
+            margin-top: 3px;
+            transition: color 0.3s ease; /* Smooth color transition */
+        }
+         #stats #timer { /* Specific style for timer base */
+             min-width: 55px; /* Ensure space for MM:SS */
+         }
+         /* Warning style for timer */
+         #stats #timer.warning {
+             color: #e74c3c; /* Red color only when warning class is present */
+             font-weight: bold;
+         }
+         #stats #hit-rate { /* Specific style for hit rate */
+              min-width: 50px;
+         }
+
+
+        /* --- Hint Box --- */
+        #hints {
+            margin-bottom: 15px; /* Space before game area */
+            font-size: 0.9em;
+            color: #555;
+            text-align: center;
+        }
+        #hints kbd { /* Style for keyboard keys */
+             background-color: #eee;
+             border: 1px solid #ccc;
+             border-radius: 3px;
+             padding: 2px 5px;
+             font-family: monospace, sans-serif;
+             font-size: 0.95em;
+             box-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+             margin: 0 2px;
+        }
+
+
+        /* --- Game Area --- */
+        #game-area {
+            width: 90vw;
+            max-width: 800px;
+            height: 65vh;
+            max-height: 550px;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            position: relative; /* Crucial for overlay positioning */
+            cursor: crosshair;
+            overflow: hidden;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+
+        /* --- Overlay Buttons Container (Play Only) --- */
+        #game-overlay-buttons {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5; /* Above targets, below pause/config overlays */
+            display: flex; /* Keep flex for centering single button */
+            justify-content: center; /* Center the play button */
+            align-items: center;
+            padding: 20px;
+            border-radius: 10px;
+            opacity: 0; /* Start hidden */
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            pointer-events: none; /* Prevent blocking clicks when invisible */
+        }
+        #game-overlay-buttons.visible {
+             opacity: 1;
+             visibility: visible;
+             pointer-events: auto; /* Allow clicks when visible */
+        }
+
+        /* Styling for Play button within the overlay */
+        #game-overlay-buttons button#playButton {
+            padding: 12px 25px; /* Larger buttons */
+            font-size: 1.1em;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background-color: #2ecc71;
+        }
+        #game-overlay-buttons button#playButton:hover:not(:disabled) { background-color: #27ae60; }
+        #game-overlay-buttons button#playButton:disabled { /* Style if needed */
+             background-color: #bdc3c7 !important;
+             cursor: not-allowed;
+             opacity: 0.7;
+        }
+
+
+        /* --- Target Styling --- */
+        .target {
+            width: 35px; /* Fixed width */
+            height: 35px; /* Fixed height */
+            background: radial-gradient(circle, #e74c3c, #c0392b);
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
+            opacity: 1;
+            transition: opacity 0.3s ease-out, transform 0.1s ease;
+            z-index: 1; /* Ensure targets are below overlays */
+        }
+        .target.removing { opacity: 0; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .target { animation: pulse 1.5s infinite ease-in-out; }
+        .target:hover { background: radial-gradient(circle, #ff6b5a, #e74c3c); transform: scale(1.1); }
+
+        /* --- Pause Overlay Text --- */
+        #pause-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(44, 62, 80, 0.7);
+            color: white; font-size: 2.5em; font-weight: bold;
+            display: none; justify-content: center; align-items: center;
+            z-index: 10; /* Above button overlay */
+            cursor: default; border-radius: 8px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+         /* --- Config Panel, Summary Panel, History Panel (Modal Styling) --- */
+        .modal-panel { /* Common styling for modals */
+            display: none; position: fixed; z-index: 20; /* Above everything */
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.6); padding-top: 60px;
+        }
+        .modal-content { /* Common styling for content box */
+            background-color: #fefefe; margin: 5% auto; padding: 25px 30px;
+            border: 1px solid #888; width: 80%; max-width: 500px; /* Default width */
+            border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            text-align: center; /* Center content by default */
+            position: relative; /* Needed for absolute positioning of close button */
+        }
+        .modal-content h2 { margin-top: 0; color: #2c3e50; margin-bottom: 25px; }
+         /* Close button for modals */
+         .modal-close-button {
+             color: #aaa;
+             position: absolute;
+             top: 10px;
+             right: 20px;
+             font-size: 28px;
+             font-weight: bold;
+             cursor: pointer;
+             line-height: 1; /* Ensure consistent vertical alignment */
+         }
+         .modal-close-button:hover,
+         .modal-close-button:focus {
+             color: black;
+             text-decoration: none;
+         }
+
+        /* --- Config Specific --- */
+        #config-panel .modal-content { max-width: 550px; } /* Slightly wider for presets */
+
+        /* Preset Buttons */
+        #preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px; /* Spacing between preset buttons */
+            justify-content: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .preset-button {
+            padding: 6px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            color: #495057;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .preset-button:hover {
+            background-color: #e9ecef;
+            border-color: #bbb;
+        }
+        .preset-button.active { /* Style for the selected preset */
+            background-color: #3498db;
+            border-color: #2980b9;
+            color: white;
+            font-weight: bold;
+        }
+        /* Special style for active Custom button */
+        .preset-button#preset-custom.active {
+             background-color: #e74c3c;
+             border-color: #c0392b;
+        }
+
+
+        #config-panel .config-item { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; text-align: left; }
+        #config-panel label { font-weight: bold; margin-right: 10px; flex-basis: 60%; }
+        #config-panel input[type="number"] { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: right; box-sizing: border-box; flex-basis: 30%; }
+        #config-panel .config-buttons { text-align: center; margin-top: 20px; }
+        #config-panel .config-buttons button { padding: 10px 20px; cursor: pointer; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; transition: background-color 0.2s ease; }
+        #config-panel .config-buttons button:hover { background-color: #27ae60; }
+
+        /* Config Separator and Header */
+        #config-panel hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 25px 0 20px 0; /* Add spacing */
+        }
+        #config-panel h3.config-section-header {
+            text-align: left;
+            font-size: 1em;
+            color: #555;
+            margin-bottom: 15px;
+            margin-top: 0; /* Reset top margin */
+            font-weight: bold;
+        }
+
+
+        /* Summary Specific */
+        #summary-panel .modal-content { max-width: 500px; } /* Keep summary width */
+        #summary-panel .summary-item { margin-bottom: 20px; font-size: 1.2em; }
+        #summary-panel .summary-item span { font-weight: bold; color: #3498db; font-size: 1.4em; display: block; margin-top: 5px; }
+        #summary-panel .summary-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+        #summary-panel .summary-buttons button { padding: 12px 25px; font-size: 1.1em; cursor: pointer; color: white; border: none; border-radius: 6px; font-weight: bold; transition: background-color 0.2s ease; }
+        #summary-panel button#playAgainImmediatelyButton { background-color: #2ecc71; }
+        #summary-panel button#playAgainImmediatelyButton:hover { background-color: #27ae60; }
+        #summary-panel button#backToStartButton { background-color: #95a5a6; }
+        #summary-panel button#backToStartButton:hover { background-color: #7f8c8d; }
+
+        /* --- History Specific --- */
+        #history-panel .modal-content { max-width: 600px; } /* Wider for history */
+        #history-panel h2 { /* Add space for preset name */
+            padding-right: 30px; /* Space for close button */
+            margin-bottom: 10px; /* Reduce space below title */
+        }
+        #history-panel h2 .preset-name { /* Style for preset name in title */
+             font-weight: normal;
+             font-size: 0.8em;
+             color: #777;
+        }
+        #history-difficulty-selector { /* Container for dropdown */
+            margin-bottom: 15px;
+        }
+        #history-difficulty-select { /* Style the dropdown */
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            min-width: 150px;
+        }
+
+        #history-list {
+            list-style: none; /* Remove default list style */
+            padding: 0;
+            margin-top: 15px;
+            max-height: 40vh; /* Limit height and allow scroll */
+            overflow-y: auto;
+            text-align: left; /* Align history items left */
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        #history-list li {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap; /* Wrap if needed */
+            gap: 10px;
+        }
+         #history-list li:last-child {
+             border-bottom: none;
+         }
+        #history-list li .history-stats {
+            font-weight: bold;
+        }
+        #history-list li .history-date {
+            font-size: 0.85em;
+            color: #777;
+            flex-shrink: 0; /* Prevent date from shrinking too much */
+        }
+        #history-panel .no-history {
+            color: #888;
+            font-style: italic;
+            margin-top: 20px;
+        }
+
+    </style>
+
+</head>
+<body>
+    <h1>Mouse Practice Game</h1>
+
+    <div class="controls">
+         <button id="configButton" title="Open Settings">Settings</button>
+         <button id="resetButton" title="Reset Current Round" disabled>Reset</button>
+         <button id="historyButton" title="View History">History</button>
+         </div>
+
+    <div id="stats">
+        <span>Score<span id="score">0</span></span>
+        <span>Accuracy<span id="accuracy">0.00</span>%</span>
+        <span>Hit Rate<span id="hit-rate">0.00</span>%</span>
+        <span>Last Reaction<span id="reaction-time">N/A</span> ms</span>
+        <span>Time Left<span id="timer">--:--</span></span>
+    </div>
+
+    <div id="hints">
+        <p><kbd>P</kbd> : Pause / Resume Game</p>
+    </div>
+
+    <div id="game-area">
+         <div id="game-overlay-buttons">
+             <button id="playButton" title="Start Game">Play</button>
+         </div>
+         <div id="pause-overlay">Paused</div>
+         </div>
+
+    <div id="config-panel" class="modal-panel">
+        <div class="modal-content">
+             <span class="modal-close-button" id="closeConfigButton">&times;</span>
+            <h2>Settings</h2>
+
+            <div id="preset-buttons">
+                <button class="preset-button" id="preset-easy">Easy</button>
+                <button class="preset-button" id="preset-normal">Normal</button>
+                <button class="preset-button" id="preset-hard">Hard</button>
+                <button class="preset-button" id="preset-veteran">Veteran</button>
+                <button class="preset-button" id="preset-aimbot">Aimbot</button>
+                <button class="preset-button" id="preset-custom">Custom</button>
+            </div>
+
+            <div class="config-item">
+                <label for="minSpawnRate">Min Spawn Rate (ms):</label>
+                <input type="number" id="minSpawnRate" value="500" min="100" step="100" class="config-input">
+            </div>
+            <div class="config-item">
+                <label for="maxSpawnRate">Max Spawn Rate (ms):</label>
+                 <input type="number" id="maxSpawnRate" value="750" min="100" step="100" class="config-input">
+            </div>
+            <div class="config-item">
+                <label for="targetLifetime">Target Lifetime (ms):</label>
+                <input type="number" id="targetLifetime" value="2500" min="200" step="100" class="config-input">
+            </div>
+            <div class="config-item">
+                <label for="maxTargets">Max Targets on Screen:</label>
+                <input type="number" id="maxTargets" value="5" min="1" step="1" class="config-input">
+            </div>
+
+            <hr>
+            <h3 class="config-section-header">Global Configs</h3>
+
+             <div class="config-item">
+                <label for="gameDuration">Game Duration (seconds):</label>
+                <input type="number" id="gameDuration" value="60" min="10" step="5">
+             </div>
+
+             <div class="config-buttons">
+                <button id="saveConfigButton">Apply & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="summary-panel" class="modal-panel">
+        <div class="modal-content">
+             <h2>Session Over!</h2>
+            <div class="summary-item">
+                Final Score: <span id="summary-score">0</span>
+            </div>
+            <div class="summary-item">
+                Final Accuracy: <span id="summary-accuracy">0.00</span>%
+            </div>
+            <div class="summary-buttons">
+                <button id="playAgainImmediatelyButton">Play Again Immediately</button>
+                <button id="backToStartButton">Back to Start</button>
+            </div>
+        </div>
+    </div>
+
+     <div id="history-panel" class="modal-panel">
+        <div class="modal-content">
+             <span class="modal-close-button" id="closeHistoryButton">&times;</span>
+             <h2 id="history-title">Game History</h2>
+             <div id="history-difficulty-selector">
+                 <label for="history-difficulty-select">Show history for: </label>
+                 <select id="history-difficulty-select">
+                     <option value="easy">Easy</option>
+                     <option value="normal">Normal</option>
+                     <option value="hard">Hard</option>
+                     <option value="veteran">Veteran</option>
+                     <option value="aimbot">Aimbot</option>
+                     <option value="custom">Custom</option>
+                 </select>
+             </div>
+             <ol id="history-list">
+                </ol>
+             <p class="no-history" style="display: none;">No history recorded yet for this difficulty.</p>
+        </div>
+    </div>
+
+
+    <script src="script.js"></script>
+
+    <script>
+        /**
+         * Mouse Practice Game (Refactored v2 - Config Sectioning)
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Constants ---
+            const TARGET_WIDTH = 35;
+            const TARGET_HEIGHT = 35;
+            const PAUSE_KEY = 'p';
+            const RESET_KEY = 'r';
+            const REMOVE_DELAY = 300;
+            const TIMER_UPDATE_INTERVAL = 250;
+            const TIMER_WARNING_THRESHOLD = 10000;
+            const DEFAULT_MIN_SPAWN = 750;
+            const DEFAULT_MAX_SPAWN = 1500;
+            const DEFAULT_LIFETIME = 2500;
+            const DEFAULT_MAX_TARGETS = 5;
+            const DEFAULT_GAME_DURATION_S = 60;
+            const MAX_HISTORY_ENTRIES = 10;
+            const MAX_SPAWN_ATTEMPTS = 20;
+            const TARGET_SPACING = 5;
+            const STORAGE_PREFIX = 'mouseGameConfig_v2_';
+            const HISTORY_PREFIX = 'mouseGameHistory_v2_';
+            const STORAGE_KEYS = {
+                minSpawn: STORAGE_PREFIX + 'minSpawnRate',
+                maxSpawn: STORAGE_PREFIX + 'maxSpawnRate',
+                lifetime: STORAGE_PREFIX + 'lifetime',
+                maxTargets: STORAGE_PREFIX + 'maxTargets',
+                duration: STORAGE_PREFIX + 'duration',
+                // history key is dynamic
+            };
+            const PRESETS = {
+                easy: { minSpawnRate: 1000, maxSpawnRate: 2500, targetLifetimeMs: 3500, maxTargets: 3 },
+                normal: { minSpawnRate: 750, maxSpawnRate: 1500, targetLifetimeMs: 2500, maxTargets: 5 },
+                hard: { minSpawnRate: 500, maxSpawnRate: 1000, targetLifetimeMs: 2000, maxTargets: 7 },
+                veteran: { minSpawnRate: 300, maxSpawnRate: 750, targetLifetimeMs: 1500, maxTargets: 9 },
+                aimbot: { minSpawnRate: 150, maxSpawnRate: 400, targetLifetimeMs: 1000, maxTargets: 12 },
+            };
+            const PRESET_KEYS = Object.keys(PRESETS);
+            const ALL_PRESET_NAMES = [...PRESET_KEYS, 'custom'];
+
+            // --- DOM Elements (Grouped) ---
+            const dom = {
+                gameArea: document.getElementById('game-area'),
+                scoreDisplay: document.getElementById('score'),
+                accuracyDisplay: document.getElementById('accuracy'),
+                hitRateDisplay: document.getElementById('hit-rate'),
+                reactionTimeDisplay: document.getElementById('reaction-time'),
+                timerDisplay: document.getElementById('timer'),
+                pauseOverlay: document.getElementById('pause-overlay'),
+                configButton: document.getElementById('configButton'),
+                resetButton: document.getElementById('resetButton'),
+                historyButton: document.getElementById('historyButton'),
+                configPanel: document.getElementById('config-panel'),
+                closeConfigButton: document.getElementById('closeConfigButton'),
+                saveConfigButton: document.getElementById('saveConfigButton'),
+                gameOverlayButtons: document.getElementById('game-overlay-buttons'),
+                playButton: document.getElementById('playButton'),
+                summaryPanel: document.getElementById('summary-panel'),
+                summaryScore: document.getElementById('summary-score'),
+                summaryAccuracy: document.getElementById('summary-accuracy'),
+                playAgainImmediatelyButton: document.getElementById('playAgainImmediatelyButton'),
+                backToStartButton: document.getElementById('backToStartButton'),
+                historyPanel: document.getElementById('history-panel'),
+                historyTitle: document.getElementById('history-title'),
+                historyDifficultySelect: document.getElementById('history-difficulty-select'),
+                historyList: document.getElementById('history-list'),
+                noHistoryMsg: document.querySelector('#history-panel .no-history'),
+                closeHistoryButton: document.getElementById('closeHistoryButton'),
+                minSpawnRateInput: document.getElementById('minSpawnRate'),
+                maxSpawnRateInput: document.getElementById('maxSpawnRate'),
+                targetLifetimeInput: document.getElementById('targetLifetime'),
+                maxTargetsInput: document.getElementById('maxTargets'),
+                gameDurationInput: document.getElementById('gameDuration'),
+                presetButtonsContainer: document.getElementById('preset-buttons'),
+                presetButtons: document.querySelectorAll('.preset-button'),
+                configInputsForPresets: document.querySelectorAll('.config-input'),
+            };
+
+            // --- Game State (Grouped) ---
+            const state = {
+                score: 0,
+                totalClicks: 0,
+                totalHits: 0,
+                totalSpawns: 0,
+                spawnTimerId: null,
+                isPaused: false,
+                isGameActive: false,
+                pauseStartTime: 0,
+                activeTargets: new Map(),
+                gameTimerIntervalId: null,
+                gameEndTime: 0,
+                activePreset: 'custom',
+                sessionPreset: 'custom',
+            };
+
+            // --- Configuration (loaded during init) (Grouped) ---
+            const config = {
+                minSpawnRate: DEFAULT_MIN_SPAWN,
+                maxSpawnRate: DEFAULT_MAX_SPAWN,
+                targetLifetimeMs: DEFAULT_LIFETIME,
+                maxTargets: DEFAULT_MAX_TARGETS,
+                gameDurationS: DEFAULT_GAME_DURATION_S,
+            };
+
+            // --- Helper Functions ---
+
+            function resetStats() {
+                state.score = 0;
+                state.totalClicks = 0;
+                state.totalHits = 0;
+                state.totalSpawns = 0;
+                dom.reactionTimeDisplay.textContent = 'N/A';
+                updateStatsDisplay();
+            }
+
+            function updateStatsDisplay() {
+                dom.scoreDisplay.textContent = state.score;
+                const accuracy = state.totalClicks === 0 ? 0 : (state.totalHits / state.totalClicks) * 100;
+                const hitRate = state.totalSpawns === 0 ? 0 : (state.totalHits / state.totalSpawns) * 100;
+                dom.accuracyDisplay.textContent = accuracy.toFixed(2);
+                dom.hitRateDisplay.textContent = hitRate.toFixed(2);
+                return accuracy;
+            }
+
+            function getRandomPosition() {
+                const gameAreaWidth = dom.gameArea.clientWidth;
+                const gameAreaHeight = dom.gameArea.clientHeight;
+                const maxX = gameAreaWidth - TARGET_WIDTH;
+                const maxY = gameAreaHeight - TARGET_HEIGHT;
+                const randomX = Math.max(0, Math.random() * maxX);
+                const randomY = Math.max(0, Math.random() * maxY);
+                return { x: randomX, y: randomY };
+            }
+
+            function doRectsOverlap(rect1, rect2, spacing = 0) {
+                return (
+                    rect1.left < rect2.right + spacing &&
+                    rect1.right + spacing > rect2.left &&
+                    rect1.top < rect2.bottom + spacing &&
+                    rect1.bottom + spacing > rect2.top
+                );
+            }
+
+            function updateOverlayButtonVisibility() {
+                if (!state.isGameActive) {
+                    dom.gameOverlayButtons.classList.add('visible');
+                } else {
+                    dom.gameOverlayButtons.classList.remove('visible');
+                }
+            }
+
+            function formatTime(ms) {
+                if (ms < 0) ms = 0;
+                const totalSeconds = Math.ceil(ms / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+             function updateGameTimer() {
+                 if (state.isPaused || !state.isGameActive) return;
+                 const now = performance.now();
+                 const remainingMs = state.gameEndTime - now;
+
+                 if (remainingMs <= 0) {
+                     dom.timerDisplay.textContent = "00:00";
+                     dom.timerDisplay.classList.remove('warning');
+                     clearInterval(state.gameTimerIntervalId);
+                     state.gameTimerIntervalId = null;
+                     console.log("Game time finished!");
+                     showSummary();
+                 } else {
+                     dom.timerDisplay.textContent = formatTime(remainingMs);
+                     dom.timerDisplay.classList.toggle('warning', remainingMs <= TIMER_WARNING_THRESHOLD);
+                 }
+             }
+
+            function scheduleSpawn() {
+                clearTimeout(state.spawnTimerId);
+                if (state.isGameActive && !state.isPaused) {
+                    if (state.activeTargets.size < config.maxTargets) {
+                        const randomDelay = Math.random() * (config.maxSpawnRate - config.minSpawnRate) + config.minSpawnRate;
+                        state.spawnTimerId = setTimeout(spawnTarget, randomDelay);
+                    } else {
+                         state.spawnTimerId = setTimeout(scheduleSpawn, Math.max(100, config.minSpawnRate / 2));
+                    }
+                }
+            }
+
+            function spawnTarget() {
+                if (!state.isGameActive || state.isPaused || state.activeTargets.size >= config.maxTargets) {
+                    scheduleSpawn();
+                    return;
+                }
+
+                let position;
+                let isValidPosition = false;
+                for (let attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++) {
+                    position = getRandomPosition();
+                    isValidPosition = true;
+                    const newRect = { left: position.x, top: position.y, right: position.x + TARGET_WIDTH, bottom: position.y + TARGET_HEIGHT };
+                    for (const targetData of state.activeTargets.values()) {
+                        const existingElement = targetData.element;
+                        const existingRect = { left: parseFloat(existingElement.style.left), top: parseFloat(existingElement.style.top), right: parseFloat(existingElement.style.left) + TARGET_WIDTH, bottom: parseFloat(existingElement.style.top) + TARGET_HEIGHT };
+                        if (doRectsOverlap(newRect, existingRect, TARGET_SPACING)) {
+                            isValidPosition = false;
+                            break;
+                        }
+                    }
+                    if (isValidPosition) break;
+                }
+
+                if (!isValidPosition) {
+                    console.warn("Could not find non-overlapping position after", MAX_SPAWN_ATTEMPTS, "attempts.");
+                    scheduleSpawn();
+                    return;
+                }
+
+                const targetId = `target-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+                const targetElement = document.createElement('div');
+                targetElement.id = targetId;
+                targetElement.className = 'target';
+                targetElement.style.left = `${position.x}px`;
+                targetElement.style.top = `${position.y}px`;
+                targetElement.style.width = `${TARGET_WIDTH}px`;
+                targetElement.style.height = `${TARGET_HEIGHT}px`;
+
+                const spawnTime = performance.now();
+                const lifetimeTimerId = setTimeout(() => removeTarget(targetId, false), config.targetLifetimeMs);
+
+                state.activeTargets.set(targetId, { element: targetElement, spawnTime: spawnTime, pauseElapsedTime: 0, lifetimeTimerId: lifetimeTimerId, remainingLifetime: config.targetLifetimeMs });
+                targetElement.addEventListener('click', handleTargetClick);
+                dom.gameArea.appendChild(targetElement);
+
+                state.totalSpawns++;
+                updateStatsDisplay();
+
+                scheduleSpawn();
+            }
+
+            function removeTarget(targetId, isHit) {
+                const targetData = state.activeTargets.get(targetId);
+                if (!targetData) return;
+
+                clearTimeout(targetData.lifetimeTimerId);
+                targetData.element.classList.add('removing');
+
+                 if (isHit) {
+                    const clickTime = performance.now();
+                    const reactionTime = (clickTime - targetData.spawnTime) - targetData.pauseElapsedTime;
+                    dom.reactionTimeDisplay.textContent = reactionTime.toFixed(0);
+                    state.score++;
+                    state.totalHits++;
+                    updateStatsDisplay();
+                 }
+
+                setTimeout(() => targetData.element?.remove(), REMOVE_DELAY);
+                state.activeTargets.delete(targetId);
+
+                if (state.isGameActive && !state.isPaused && state.activeTargets.size === 0) {
+                    console.log("Spawning immediately - screen empty.");
+                    clearTimeout(state.spawnTimerId);
+                    spawnTarget();
+                } else if (state.isGameActive && !state.isPaused) {
+                     if (state.activeTargets.size < config.maxTargets) {
+                         scheduleSpawn();
+                     }
+                }
+            }
+
+            // --- Game Flow Control ---
+
+             function startGame() {
+                 if (state.isGameActive) return;
+                 console.log("Starting Game...");
+                 state.sessionPreset = state.activePreset;
+                 state.isGameActive = true;
+                 state.isPaused = false;
+                 dom.pauseOverlay.style.display = 'none';
+                 dom.summaryPanel.style.display = 'none';
+                 dom.gameArea.style.cursor = 'crosshair';
+                 setButtonStates(true);
+                 updateOverlayButtonVisibility();
+
+                 state.gameEndTime = performance.now() + config.gameDurationS * 1000;
+                 updateGameTimer();
+                 clearInterval(state.gameTimerIntervalId);
+                 state.gameTimerIntervalId = setInterval(updateGameTimer, TIMER_UPDATE_INTERVAL);
+
+                 if (state.activeTargets.size === 0) { spawnTarget(); } else { scheduleSpawn(); }
+             }
+
+            function stopGameActivity() {
+                console.log("Stopping Game Activity...");
+                state.isGameActive = false;
+                clearTimeout(state.spawnTimerId);
+                clearInterval(state.gameTimerIntervalId);
+                state.gameTimerIntervalId = null;
+
+                state.activeTargets.forEach((targetData, targetId) => {
+                    clearTimeout(targetData.lifetimeTimerId);
+                    targetData.element.remove();
+                });
+                state.activeTargets.clear();
+
+                 if(state.isPaused) {
+                    state.isPaused = false;
+                    dom.pauseOverlay.style.display = 'none';
+                    dom.gameArea.style.cursor = 'crosshair';
+                 }
+
+                setButtonStates(false);
+                updateOverlayButtonVisibility();
+                dom.timerDisplay.classList.remove('warning');
+            }
+
+             function resetRound() {
+                 stopGameActivity();
+                 resetStats();
+                 dom.timerDisplay.textContent = formatTime(config.gameDurationS * 1000);
+                 console.log("Round Reset Performed (Keeping Config)");
+             }
+
+             function showSummary() {
+                 const finalAccuracy = updateStatsDisplay();
+                 saveHistoryEntry(state.score, finalAccuracy, state.sessionPreset || 'custom');
+                 stopGameActivity();
+
+                 dom.summaryScore.textContent = state.score;
+                 dom.summaryAccuracy.textContent = finalAccuracy.toFixed(2);
+
+                 dom.gameOverlayButtons.classList.remove('visible');
+                 dom.summaryPanel.style.display = 'block';
+                 console.log("Displaying Summary");
+             }
+
+            function togglePause() {
+                if (!state.isGameActive) return;
+                const now = performance.now();
+                state.isPaused = !state.isPaused;
+
+                if (state.isPaused) {
+                    // --- PAUSING ---
+                    state.pauseStartTime = now;
+                    clearTimeout(state.spawnTimerId);
+                    clearInterval(state.gameTimerIntervalId);
+                    state.gameTimerIntervalId = null;
+                    dom.pauseOverlay.style.display = 'flex';
+                    dom.gameArea.style.cursor = 'default';
+                    dom.resetButton.disabled = true;
+
+                    state.activeTargets.forEach((targetData, targetId) => {
+                        clearTimeout(targetData.lifetimeTimerId);
+                        const elapsedTime = (state.pauseStartTime - targetData.spawnTime) - targetData.pauseElapsedTime;
+                        targetData.remainingLifetime = Math.max(0, config.targetLifetimeMs - elapsedTime);
+                    });
+                    console.log("Game Paused");
+                } else {
+                    // --- RESUMING ---
+                    const pauseDuration = now - state.pauseStartTime;
+                    dom.pauseOverlay.style.display = 'none';
+                    dom.gameArea.style.cursor = 'crosshair';
+                    state.gameEndTime += pauseDuration;
+                    clearInterval(state.gameTimerIntervalId);
+                    state.gameTimerIntervalId = setInterval(updateGameTimer, TIMER_UPDATE_INTERVAL);
+                    updateGameTimer();
+                    dom.resetButton.disabled = false;
+
+                    state.activeTargets.forEach((targetData, targetId) => {
+                        targetData.pauseElapsedTime += pauseDuration;
+                        if (targetData.remainingLifetime > 0) {
+                            targetData.lifetimeTimerId = setTimeout(() => removeTarget(targetId, false), targetData.remainingLifetime);
+                            targetData.remainingLifetime = null;
+                        } else {
+                            removeTarget(targetId, false);
+                        }
+                    });
+                    scheduleSpawn();
+                    console.log("Game Resumed");
+                }
+            }
+
+            // --- Configuration Management ---
+
+            function loadConfiguration() {
+                const loadItem = (key, defaultValue) => {
+                    try {
+                        const storedValue = localStorage.getItem(key);
+                        if (storedValue !== null && storedValue !== undefined) {
+                            const parsedValue = parseInt(storedValue, 10);
+                            if (!isNaN(parsedValue)) return parsedValue;
+                        }
+                    } catch (e) { console.error(`Error loading ${key}:`, e); }
+                    return defaultValue;
+                };
+                config.minSpawnRate = loadItem(STORAGE_KEYS.minSpawn, DEFAULT_MIN_SPAWN);
+                config.maxSpawnRate = loadItem(STORAGE_KEYS.maxSpawn, DEFAULT_MAX_SPAWN);
+                config.targetLifetimeMs = loadItem(STORAGE_KEYS.lifetime, DEFAULT_LIFETIME);
+                config.maxTargets = loadItem(STORAGE_KEYS.maxTargets, DEFAULT_MAX_TARGETS);
+                config.gameDurationS = loadItem(STORAGE_KEYS.duration, DEFAULT_GAME_DURATION_S);
+                 if (config.minSpawnRate > config.maxSpawnRate) {
+                     [config.minSpawnRate, config.maxSpawnRate] = [config.maxSpawnRate, config.minSpawnRate];
+                 }
+                dom.minSpawnRateInput.value = config.minSpawnRate;
+                dom.maxSpawnRateInput.value = config.maxSpawnRate;
+                dom.targetLifetimeInput.value = config.targetLifetimeMs;
+                dom.maxTargetsInput.value = config.maxTargets;
+                dom.gameDurationInput.value = config.gameDurationS;
+                state.activePreset = checkIfCustomPreset(config);
+                console.log("Configuration Loaded:", config, "Active Preset:", state.activePreset);
+            }
+
+            function saveConfiguration() {
+                try {
+                    localStorage.setItem(STORAGE_KEYS.minSpawn, config.minSpawnRate.toString());
+                    localStorage.setItem(STORAGE_KEYS.maxSpawn, config.maxSpawnRate.toString());
+                    localStorage.setItem(STORAGE_KEYS.lifetime, config.targetLifetimeMs.toString());
+                    localStorage.setItem(STORAGE_KEYS.maxTargets, config.maxTargets.toString());
+                    localStorage.setItem(STORAGE_KEYS.duration, config.gameDurationS.toString());
+                    console.log("Configuration Saved.");
+                } catch (e) { console.error("Failed to save configuration:", e); }
+            }
+
+            function openConfig() {
+                 if (state.isGameActive) return;
+                 dom.minSpawnRateInput.value = config.minSpawnRate;
+                 dom.maxSpawnRateInput.value = config.maxSpawnRate;
+                 dom.targetLifetimeInput.value = config.targetLifetimeMs;
+                 dom.maxTargetsInput.value = config.maxTargets;
+                 dom.gameDurationInput.value = config.gameDurationS;
+                 state.activePreset = checkIfCustomPreset(config);
+                 updatePresetButtonsUI();
+                 dom.configPanel.style.display = 'block';
+             }
+
+            function applyAndCloseConfig() {
+                 const newMinSpawn = parseInt(dom.minSpawnRateInput.value, 10);
+                 const newMaxSpawn = parseInt(dom.maxSpawnRateInput.value, 10);
+                 const newLifetime = parseInt(dom.targetLifetimeInput.value, 10);
+                 const newMaxT = parseInt(dom.maxTargetsInput.value, 10);
+                 const newDuration = parseInt(dom.gameDurationInput.value, 10);
+
+                 if (!isNaN(newMinSpawn) && newMinSpawn >= 100) config.minSpawnRate = newMinSpawn;
+                 if (!isNaN(newMaxSpawn) && newMaxSpawn >= 100) config.maxSpawnRate = newMaxSpawn;
+                 if (!isNaN(newLifetime) && newLifetime >= 200) config.targetLifetimeMs = newLifetime;
+                 if (!isNaN(newMaxT) && newMaxT >= 1) config.maxTargets = newMaxT;
+                 if (!isNaN(newDuration) && newDuration >= 10) config.gameDurationS = newDuration;
+
+                 if (config.minSpawnRate > config.maxSpawnRate) {
+                     [config.minSpawnRate, config.maxSpawnRate] = [config.maxSpawnRate, config.minSpawnRate];
+                     dom.minSpawnRateInput.value = config.minSpawnRate;
+                     dom.maxSpawnRateInput.value = config.maxSpawnRate;
+                 }
+                 saveConfiguration();
+                 state.activePreset = checkIfCustomPreset(config);
+                 updatePresetButtonsUI();
+                 console.log("Config Applied & Saved:", config, "Active Preset:", state.activePreset);
+                 closeModal(dom.configPanel);
+                 dom.configButton.disabled = state.isGameActive;
+                 if (!state.isGameActive) {
+                     dom.timerDisplay.textContent = formatTime(config.gameDurationS * 1000);
+                 }
+             }
+
+            // --- History Management ---
+
+            function loadHistory(presetName) {
+                const key = HISTORY_PREFIX + presetName;
+                try {
+                    const storedHistory = localStorage.getItem(key);
+                    if (storedHistory) {
+                        const parsed = JSON.parse(storedHistory);
+                        return Array.isArray(parsed) ? parsed : [];
+                    }
+                } catch (e) { console.error(`Failed to load history for ${presetName}:`, e); }
+                return [];
+            }
+
+            function saveHistoryEntry(finalScore, finalAccuracy, presetName) {
+                const key = HISTORY_PREFIX + presetName;
+                const history = loadHistory(presetName);
+                const newEntry = { score: finalScore, accuracy: finalAccuracy, timestamp: Date.now() };
+                history.unshift(newEntry);
+                const trimmedHistory = history.slice(0, MAX_HISTORY_ENTRIES);
+                try {
+                    localStorage.setItem(key, JSON.stringify(trimmedHistory));
+                    console.log(`History entry saved for preset: ${presetName}.`);
+                } catch (e) { console.error("Failed to save game history:", e); }
+            }
+
+            function displayHistoryForPreset(presetName) {
+                const history = loadHistory(presetName);
+                const presetDisplayName = presetName.charAt(0).toUpperCase() + presetName.slice(1);
+                dom.historyTitle.innerHTML = `Game History <span class="preset-name">(${presetDisplayName})</span>`;
+                dom.historyList.innerHTML = '';
+                if (history.length === 0) {
+                    dom.noHistoryMsg.style.display = 'block';
+                    dom.noHistoryMsg.textContent = `No history recorded yet for ${presetDisplayName} difficulty.`;
+                } else {
+                    dom.noHistoryMsg.style.display = 'none';
+                    history.forEach(entry => {
+                        const li = document.createElement('li');
+                        const dateStr = new Date(entry.timestamp).toLocaleString();
+                        li.innerHTML = `
+                            <span class="history-stats">Score: ${entry.score}, Accuracy: ${entry.accuracy.toFixed(2)}%</span>
+                            <span class="history-date">${dateStr}</span>
+                        `;
+                        dom.historyList.appendChild(li);
+                    });
+                }
+            }
+
+            function openHistoryPanel() {
+                if (state.isGameActive) return;
+                const currentPreset = checkIfCustomPreset(config);
+                dom.historyDifficultySelect.value = currentPreset;
+                displayHistoryForPreset(currentPreset);
+                dom.historyPanel.style.display = 'block';
+            }
+
+             function closeModal(panelElement) {
+                 panelElement.style.display = 'none';
+             }
+
+            // --- Preset Management ---
+
+            function updatePresetButtonsUI() {
+                dom.presetButtons.forEach(button => {
+                    const presetName = button.id.replace('preset-', '');
+                    button.classList.toggle('active', presetName === state.activePreset);
+                });
+                console.log("Preset UI Updated. Active:", state.activePreset);
+            }
+
+            function checkIfCustomPreset(currentConfig) {
+                for (const presetName of PRESET_KEYS) {
+                    const presetValues = PRESETS[presetName];
+                    if (
+                        currentConfig.minSpawnRate === presetValues.minSpawnRate &&
+                        currentConfig.maxSpawnRate === presetValues.maxSpawnRate &&
+                        currentConfig.targetLifetimeMs === presetValues.targetLifetimeMs &&
+                        currentConfig.maxTargets === presetValues.maxTargets
+                    ) {
+                        return presetName;
+                    }
+                }
+                return 'custom';
+            }
+
+            function applyPreset(presetName) {
+                if (!PRESETS[presetName]) {
+                    console.warn("Attempted to apply invalid preset:", presetName);
+                    return;
+                }
+                const values = PRESETS[presetName];
+                config.minSpawnRate = values.minSpawnRate;
+                config.maxSpawnRate = values.maxSpawnRate;
+                config.targetLifetimeMs = values.targetLifetimeMs;
+                config.maxTargets = values.maxTargets;
+                dom.minSpawnRateInput.value = config.minSpawnRate;
+                dom.maxSpawnRateInput.value = config.maxSpawnRate;
+                dom.targetLifetimeInput.value = config.targetLifetimeMs;
+                dom.maxTargetsInput.value = config.maxTargets;
+                state.activePreset = presetName;
+                updatePresetButtonsUI();
+                console.log(`Applied preset: ${presetName}`);
+            }
+
+
+            // --- UI State Management ---
+
+            function setButtonStates(gameIsActive) {
+                 dom.playButton.disabled = gameIsActive;
+                 dom.resetButton.disabled = !gameIsActive;
+                 dom.configButton.disabled = gameIsActive;
+                 dom.historyButton.disabled = gameIsActive;
+                 // Pause state for reset button is handled in togglePause
+            }
+
+
+            // --- Event Handlers ---
+
+            function handleTargetClick(event) {
+                if (!state.isGameActive || state.isPaused) return;
+                const targetId = event.target.id;
+                state.totalClicks++;
+                removeTarget(targetId, true);
+            }
+
+            function handleBackgroundClick(event) {
+                 if (event.target.classList.contains('target')) return;
+                 if (!state.isGameActive || state.isPaused) return;
+                state.totalClicks++;
+                updateStatsDisplay();
+            }
+
+            function handleKeyDown(event) {
+                 if (event.target.tagName === 'INPUT') return;
+                const key = event.key.toLowerCase();
+                if (key === PAUSE_KEY) {
+                    if (state.isGameActive && dom.configPanel.style.display !== 'block' && dom.summaryPanel.style.display !== 'block' && dom.historyPanel.style.display !== 'block') {
+                         togglePause();
+                    }
+                } else if (key === RESET_KEY) {
+                    if (state.isGameActive && !state.isPaused) {
+                        resetRound();
+                    }
+                }
+            }
+
+            function handleConfigInputChange() {
+                 const currentInputValues = {
+                    minSpawnRate: parseInt(dom.minSpawnRateInput.value, 10),
+                    maxSpawnRate: parseInt(dom.maxSpawnRateInput.value, 10),
+                    targetLifetimeMs: parseInt(dom.targetLifetimeInput.value, 10),
+                    maxTargets: parseInt(dom.maxTargetsInput.value, 10)
+                 };
+                 state.activePreset = checkIfCustomPreset(currentInputValues);
+                 updatePresetButtonsUI();
+            }
+
+
+            // --- Initialization ---
+
+            function init() {
+                loadConfiguration();
+                updateStatsDisplay();
+                updateOverlayButtonVisibility();
+                setButtonStates(false);
+                dom.timerDisplay.textContent = formatTime(config.gameDurationS * 1000);
+                dom.timerDisplay.classList.remove('warning');
+                updatePresetButtonsUI();
+
+                // Attach Event Listeners
+                dom.playButton.addEventListener('click', startGame);
+                dom.resetButton.addEventListener('click', resetRound);
+                dom.configButton.addEventListener('click', openConfig);
+                dom.historyButton.addEventListener('click', openHistoryPanel);
+                dom.saveConfigButton.addEventListener('click', applyAndCloseConfig);
+
+                // Preset Button Listeners (Using Event Delegation)
+                dom.presetButtonsContainer.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('preset-button')) {
+                        const presetName = event.target.id.replace('preset-', '');
+                        if (presetName === 'custom') {
+                            state.activePreset = 'custom';
+                            updatePresetButtonsUI();
+                            console.log("Selected Custom preset state (values unchanged).");
+                        } else {
+                            applyPreset(presetName);
+                        }
+                    }
+                });
+
+                // Config Input Listeners (to update preset UI)
+                dom.configInputsForPresets.forEach(input => {
+                    input.addEventListener('input', handleConfigInputChange);
+                });
+
+                // Modal Close Handlers
+                dom.configPanel.addEventListener('click', (event) => {
+                    if (event.target === dom.configPanel) applyAndCloseConfig();
+                });
+                dom.closeConfigButton.addEventListener('click', () => applyAndCloseConfig());
+                dom.historyPanel.addEventListener('click', (event) => {
+                    if (event.target === dom.historyPanel) closeModal(dom.historyPanel);
+                });
+                dom.closeHistoryButton.addEventListener('click', () => closeModal(dom.historyPanel));
+
+                // History Difficulty Selector Change Handler
+                dom.historyDifficultySelect.addEventListener('change', (event) => {
+                    displayHistoryForPreset(event.target.value);
+                });
+
+                // Summary Buttons
+                dom.playAgainImmediatelyButton.addEventListener('click', () => {
+                    console.log("Starting immediate replay with config:", config);
+                    dom.summaryPanel.style.display = 'none';
+                    resetStats();
+                    startGame();
+                });
+                dom.backToStartButton.addEventListener('click', () => {
+                    dom.summaryPanel.style.display = 'none';
+                    resetRound();
+                });
+
+                // Global listeners
+                dom.gameArea.addEventListener('click', handleBackgroundClick);
+                document.addEventListener('keydown', handleKeyDown);
+
+                console.log("Game ready. Press Play to start.");
+            }
+
+            // --- Start Execution ---
+            init();
+
+        });
+    </script>
+</body>
+</html>
