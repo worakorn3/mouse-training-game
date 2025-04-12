@@ -1,5 +1,7 @@
 # Mouse Practice Game
 
+**Note:** Just a heads-up! This game was created as a fun **vibe coding** exercise during free time. Hope you find it useful (and fun)!
+
 A simple web-based game designed to help users practice mouse accuracy, reaction time, and clicking speed.
 
 ## Features
