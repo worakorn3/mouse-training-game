@@ -1,6 +1,6 @@
 # Mouse Practice Game
 
-**Note:** Just a heads-up! This game was created as a fun **vibe coding** exercise during free time. Hope you find it useful (and fun)!
+**Note:** Just a heads-up! This game was created as a fun vibe coding exercise during free time. Hope you find it useful (and fun)!
 
 A simple web-based game designed to help users practice mouse accuracy, reaction time, and clicking speed.
 
@@ -49,3 +49,7 @@ A simple web-based game designed to help users practice mouse accuracy, reaction
     * Click "Play Again Immediately" to start another round instantly using the same settings you just played with.
     * Click "Back to Start" to return to the initial screen (keeping your settings); you'll need to press "Play" again.
 10. Click the "History" button (top bar) when the game is stopped to view your recent session results. Use the dropdown menu in the history panel to view results for different difficulty presets.
+
+## Known Issues
+
+* **Accuracy/Hit Rate Calculation:** The Accuracy and Hit Rate percentages may display incorrect values (e.g., starting at 50% or 500%) after the first few interactions, especially after hitting the first target. This relates to how initial clicks are counted.
